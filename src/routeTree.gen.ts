@@ -8,20 +8,105 @@
 // You should NOT make any changes in this file as it will be overwritten.
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
-// Import Routes
+import { Route as rootRouteImport } from './routes/__root'
+import { Route as IndexRouteImport } from './routes/index'
+import { Route as AboutRouteImport } from './routes/about'
+import { Route as ApiHealthRouteImport } from './routes/api/health'
+import { Route as ExamplesIndexRouteImport } from './routes/examples/index'
+import { Route as ExamplesSearchParamsRouteImport } from './routes/examples/search-params'
+import { Route as ExamplesServerFunctionsRouteImport } from './routes/examples/server-functions'
 
-import { Route as rootRoute } from './routes/__root'
-import { Route as IndexImport } from './routes/index'
-
-// Create/Update Routes
-
-const IndexRoute = IndexImport.update({
+const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
-  getParentRoute: () => rootRoute,
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AboutRoute = AboutRouteImport.update({
+  id: '/about',
+  path: '/about',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiHealthRoute = ApiHealthRouteImport.update({
+  id: '/api/health',
+  path: '/api/health',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ExamplesIndexRoute = ExamplesIndexRouteImport.update({
+  id: '/examples/',
+  path: '/examples/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ExamplesSearchParamsRoute = ExamplesSearchParamsRouteImport.update({
+  id: '/examples/search-params',
+  path: '/examples/search-params',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ExamplesServerFunctionsRoute = ExamplesServerFunctionsRouteImport.update({
+  id: '/examples/server-functions',
+  path: '/examples/server-functions',
+  getParentRoute: () => rootRouteImport,
 } as any)
 
-// Populate the FileRoutesByPath interface
+export interface FileRoutesByFullPath {
+  '/': typeof IndexRoute
+  '/about': typeof AboutRoute
+  '/api/health': typeof ApiHealthRoute
+  '/examples/search-params': typeof ExamplesSearchParamsRoute
+  '/examples/server-functions': typeof ExamplesServerFunctionsRoute
+  '/examples/': typeof ExamplesIndexRoute
+}
+export interface FileRoutesByTo {
+  '/': typeof IndexRoute
+  '/about': typeof AboutRoute
+  '/api/health': typeof ApiHealthRoute
+  '/examples/search-params': typeof ExamplesSearchParamsRoute
+  '/examples/server-functions': typeof ExamplesServerFunctionsRoute
+  '/examples': typeof ExamplesIndexRoute
+}
+export interface FileRoutesById {
+  __root__: typeof rootRouteImport
+  '/': typeof IndexRoute
+  '/about': typeof AboutRoute
+  '/api/health': typeof ApiHealthRoute
+  '/examples/search-params': typeof ExamplesSearchParamsRoute
+  '/examples/server-functions': typeof ExamplesServerFunctionsRoute
+  '/examples/': typeof ExamplesIndexRoute
+}
+export interface FileRouteTypes {
+  fileRoutesByFullPath: FileRoutesByFullPath
+  fullPaths:
+    | '/'
+    | '/about'
+    | '/api/health'
+    | '/examples/search-params'
+    | '/examples/server-functions'
+    | '/examples/'
+  fileRoutesByTo: FileRoutesByTo
+  to:
+    | '/'
+    | '/about'
+    | '/api/health'
+    | '/examples/search-params'
+    | '/examples/server-functions'
+    | '/examples'
+  id:
+    | '__root__'
+    | '/'
+    | '/about'
+    | '/api/health'
+    | '/examples/search-params'
+    | '/examples/server-functions'
+    | '/examples/'
+  fileRoutesById: FileRoutesById
+}
+export interface RootRouteChildren {
+  IndexRoute: typeof IndexRoute
+  AboutRoute: typeof AboutRoute
+  ApiHealthRoute: typeof ApiHealthRoute
+  ExamplesSearchParamsRoute: typeof ExamplesSearchParamsRoute
+  ExamplesServerFunctionsRoute: typeof ExamplesServerFunctionsRoute
+  ExamplesIndexRoute: typeof ExamplesIndexRoute
+}
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
@@ -29,60 +114,64 @@ declare module '@tanstack/react-router' {
       id: '/'
       path: '/'
       fullPath: '/'
-      preLoaderRoute: typeof IndexImport
-      parentRoute: typeof rootRoute
+      preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/about': {
+      id: '/about'
+      path: '/about'
+      fullPath: '/about'
+      preLoaderRoute: typeof AboutRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/health': {
+      id: '/api/health'
+      path: '/api/health'
+      fullPath: '/api/health'
+      preLoaderRoute: typeof ApiHealthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/examples/': {
+      id: '/examples/'
+      path: '/examples'
+      fullPath: '/examples/'
+      preLoaderRoute: typeof ExamplesIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/examples/search-params': {
+      id: '/examples/search-params'
+      path: '/examples/search-params'
+      fullPath: '/examples/search-params'
+      preLoaderRoute: typeof ExamplesSearchParamsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/examples/server-functions': {
+      id: '/examples/server-functions'
+      path: '/examples/server-functions'
+      fullPath: '/examples/server-functions'
+      preLoaderRoute: typeof ExamplesServerFunctionsRouteImport
+      parentRoute: typeof rootRouteImport
     }
   }
-}
-
-// Create and export the route tree
-
-export interface FileRoutesByFullPath {
-  '/': typeof IndexRoute
-}
-
-export interface FileRoutesByTo {
-  '/': typeof IndexRoute
-}
-
-export interface FileRoutesById {
-  __root__: typeof rootRoute
-  '/': typeof IndexRoute
-}
-
-export interface FileRouteTypes {
-  fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
-  fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
-  fileRoutesById: FileRoutesById
-}
-
-export interface RootRouteChildren {
-  IndexRoute: typeof IndexRoute
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AboutRoute: AboutRoute,
+  ApiHealthRoute: ApiHealthRoute,
+  ExamplesSearchParamsRoute: ExamplesSearchParamsRoute,
+  ExamplesServerFunctionsRoute: ExamplesServerFunctionsRoute,
+  ExamplesIndexRoute: ExamplesIndexRoute,
 }
-
-export const routeTree = rootRoute
+export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
 
-/* ROUTE_MANIFEST_START
-{
-  "routes": {
-    "__root__": {
-      "filePath": "__root.tsx",
-      "children": [
-        "/"
-      ]
-    },
-    "/": {
-      "filePath": "index.tsx"
-    }
+import type { getRouter } from './router.tsx'
+import type { createStart } from '@tanstack/react-start'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
   }
 }
-ROUTE_MANIFEST_END */

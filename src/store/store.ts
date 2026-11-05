@@ -1,4 +1,4 @@
-import { Store } from '@tanstack/store'
+import { Store } from '@tanstack/react-store'
 import type { Message } from '../utils/ai'
 
 // Types
@@ -13,12 +13,12 @@ export interface Prompt {
 export interface Conversation {
   id: string
   title: string
-  messages: Message[]
+  messages: Array<Message>
 }
 
 export interface State {
-  prompts: Prompt[]
-  conversations: Conversation[]
+  prompts: Array<Prompt>
+  conversations: Array<Conversation>
   currentConversationId: string | null
   isLoading: boolean
 }
@@ -84,7 +84,7 @@ export const actions = {
   },
 
   // Chat actions
-  setConversations: (conversations: Conversation[]) => {
+  setConversations: (conversations: Array<Conversation>) => {
     store.setState(state => ({ ...state, conversations }))
   },
 

@@ -1,39 +1,40 @@
+import { memo } from 'react'
 import ReactMarkdown from 'react-markdown'
 import rehypeRaw from 'rehype-raw'
 import rehypeSanitize from 'rehype-sanitize'
 import rehypeHighlight from 'rehype-highlight'
+
 import type { Message } from '../utils/ai'
 
-export const ChatMessage = ({ message }: { message: Message }) => (
-  <div
-    className={`py-6 ${
-      message.role === 'assistant'
-        ? 'bg-gradient-to-r from-orange-500/5 to-red-600/5'
-        : 'bg-transparent'
-    }`}
-  >
-    <div className="flex items-start w-full max-w-3xl gap-4 mx-auto">
-      {message.role === 'assistant' ? (
-        <div className="flex items-center justify-center flex-shrink-0 w-8 h-8 ml-4 text-sm font-medium text-white rounded-lg bg-gradient-to-r from-orange-500 to-red-600">
-          AI
-        </div>
-      ) : (
-        <div className="flex items-center justify-center flex-shrink-0 w-8 h-8 text-sm font-medium text-white bg-gray-700 rounded-lg">
-          Y
-        </div>
-      )}
-      <div className="flex-1 min-w-0 mr-4">
-        <ReactMarkdown
-          className="prose dark:prose-invert max-w-none"
-          rehypePlugins={[
-            rehypeRaw,
-            rehypeSanitize,
-            rehypeHighlight,
-          ]}
+const rehypePlugins = [rehypeRaw, rehypeSanitize, rehypeHighlight]
+
+export const ChatMessage = memo(function ChatMessageView({
+  message,
+}: {
+  message: Message
+}) {
+  const isAssistant = message.role === 'assistant'
+
+  return (
+    <div
+      className={`motion-safe:animate-fade-up py-5 ${
+        isAssistant ? 'rounded-2xl bg-accent/[0.04] dark:bg-accent/[0.06]' : ''
+      }`}
+    >
+      <div className="flex w-full items-start gap-3 px-3 sm:gap-4 sm:px-4">
+        <div
+          className={`grid size-8 shrink-0 place-items-center rounded-lg text-xs font-semibold ${
+            isAssistant ? 'bg-brand text-white' : 'bg-surface-3 text-fg'
+          }`}
+          aria-hidden
         >
-          {message.content}
-        </ReactMarkdown>
+          {isAssistant ? 'AI' : 'Y'}
+        </div>
+        <div className="prose prose-sm min-w-0 flex-1 dark:prose-invert sm:prose-base">
+          <span className="sr-only">{isAssistant ? 'Assistant:' : 'You:'}</span>
+          <ReactMarkdown rehypePlugins={rehypePlugins}>{message.content}</ReactMarkdown>
+        </div>
       </div>
     </div>
-  </div>
-); 
+  )
+})

@@ -1,51 +1,71 @@
-import { Send } from 'lucide-react';
+import { useEffect, useRef } from 'react'
+import { Send } from 'lucide-react'
 
 interface ChatInputProps {
-  input: string;
-  setInput: (value: string) => void;
-  handleSubmit: (e: React.FormEvent) => Promise<void>;
-  isLoading: boolean;
+  input: string
+  setInput: (value: string) => void
+  handleSubmit: (e?: React.FormEvent) => void
+  isLoading: boolean
+  /** Larger, centered variant used on the welcome screen */
+  variant?: 'docked' | 'hero'
+  autoFocus?: boolean
 }
 
-export const ChatInput = ({ 
-  input, 
-  setInput, 
-  handleSubmit, 
-  isLoading 
-}: ChatInputProps) => (
-  <div className="absolute bottom-0 right-0 border-t left-64 bg-gray-900/80 backdrop-blur-sm border-orange-500/10">
-    <div className="w-full max-w-3xl px-4 py-3 mx-auto">
-      <form onSubmit={handleSubmit}>
-        <div className="relative">
-          <textarea
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault()
-                handleSubmit(e)
-              }
-            }}
-            placeholder="Type something clever (or don't, we won't judge)..."
-            className="w-full py-3 pl-4 pr-12 overflow-hidden text-sm text-white placeholder-gray-400 border rounded-lg shadow-lg resize-none border-orange-500/20 bg-gray-800/50 focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-transparent"
-            rows={1}
-            style={{ minHeight: '44px', maxHeight: '200px' }}
-            onInput={(e) => {
-              const target = e.target as HTMLTextAreaElement
-              target.style.height = 'auto'
-              target.style.height =
-                Math.min(target.scrollHeight, 200) + 'px'
-            }}
-          />
-          <button
-            type="submit"
-            disabled={!input.trim() || isLoading}
-            className="absolute p-2 text-orange-500 transition-colors -translate-y-1/2 right-2 top-1/2 hover:text-orange-400 disabled:text-gray-500 focus:outline-none"
-          >
-            <Send className="w-4 h-4" />
-          </button>
-        </div>
-      </form>
-    </div>
-  </div>
-); 
+export function ChatInput({
+  input,
+  setInput,
+  handleSubmit,
+  isLoading,
+  variant = 'docked',
+  autoFocus,
+}: ChatInputProps) {
+  const ref = useRef<HTMLTextAreaElement>(null)
+
+  // Auto-grow the textarea (also shrinks it back after the input is cleared)
+  useEffect(() => {
+    const el = ref.current
+    if (!el) return
+    el.style.height = 'auto'
+    el.style.height = `${Math.min(el.scrollHeight, 200)}px`
+  }, [input])
+
+  return (
+    <form
+      onSubmit={(e) => {
+        e.preventDefault()
+        handleSubmit(e)
+      }}
+      className="relative"
+    >
+      <label htmlFor={`chat-input-${variant}`} className="sr-only">
+        Message
+      </label>
+      <textarea
+        id={`chat-input-${variant}`}
+        ref={ref}
+        value={input}
+        autoFocus={autoFocus}
+        onChange={(e) => setInput(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
+            e.preventDefault()
+            handleSubmit()
+          }
+        }}
+        placeholder="Type something clever (or don't, we won't judge)..."
+        rows={variant === 'hero' ? 3 : 1}
+        className={`w-full resize-none overflow-y-auto rounded-xl border border-line bg-surface-2 py-3 pr-12 pl-4 text-sm text-fg shadow-sm placeholder:text-muted focus:border-transparent focus:ring-2 focus:ring-accent/50 focus:outline-none ${
+          variant === 'hero' ? 'min-h-[88px]' : 'min-h-[48px]'
+        }`}
+      />
+      <button
+        type="submit"
+        aria-label="Send message"
+        disabled={!input.trim() || isLoading}
+        className="bg-brand absolute right-2 bottom-2.5 grid size-8 place-items-center rounded-lg text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
+      >
+        <Send className="size-4" />
+      </button>
+    </form>
+  )
+}
