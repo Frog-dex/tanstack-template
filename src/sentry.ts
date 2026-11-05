@@ -1,11 +1,9 @@
-import * as Sentry from '@sentry/react';
+import * as Sentry from '@sentry/react'
+
+export const isSentryEnabled = Boolean(import.meta.env.VITE_SENTRY_DSN)
 
 export function initSentry() {
-  // Skip Sentry initialization if DSN is not defined
-  if (!import.meta.env.VITE_SENTRY_DSN) {
-    console.log('Sentry DSN not found. Skipping Sentry initialization.');
-    return;
-  }
+  if (!isSentryEnabled) return
 
   Sentry.init({
     dsn: import.meta.env.VITE_SENTRY_DSN,
@@ -22,5 +20,5 @@ export function initSentry() {
     replaysSessionSampleRate: 0.1,
     replaysOnErrorSampleRate: 1.0,
     environment: import.meta.env.MODE,
-  });
+  })
 }

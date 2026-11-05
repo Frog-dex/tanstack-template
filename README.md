@@ -2,35 +2,27 @@
 
 ![TanStack Starter Preview](tanstack-starter-preview.jpg)
 
-A modern chat template built with TanStack Router and Claude AI integration features a clean and responsive interface.
+A modern, full-stack AI chat template built with **TanStack Start**, **TanStack Router** and **TanStack Store**, with Claude streaming replies through a type-safe server function. It has light and dark themes, a responsive layout, and a set of example pages showing the core TanStack Start patterns.
 
 **⚡ View demo:** [https://tanstack-starter.netlify.app/](https://tanstack-starter.netlify.app/)
 
 ## Table of Contents
 - [Deploy to Netlify](#deploy-to-netlify)
-- [Features](#-features)
-  - [AI Capabilities](#ai-capabilities)
-  - [User Experience](#user-experience)
-- [Project Structure](#project-structure)
-  - [Key Directories](#key-directories)
-- [Architecture](#architecture)
-  - [Tech Stack](#tech-stack)
-  - [Prerequisites](#prerequisites)
+- [Screenshots](#screenshots)
+- [Features](#features)
+- [Tech Stack](#tech-stack)
 - [Getting Started](#getting-started)
-  - [Local Setup](#local-setup)
-  - [Troubleshooting](#troubleshooting)
-  - [Building For Production](#building-for-production)
-- [Styling](#styling)
-- [Error Monitoring](#error-monitoring)
+- [Scripts](#scripts)
 - [Environment Configuration](#environment-configuration)
-  - [Anthropic API Key](#anthropic-api-key)
-  - [Convex Configuration](#convex-configuration-optional)
+- [Project Structure](#project-structure)
+- [Example Pages](#example-pages)
 - [Routing](#routing)
-  - [Adding A Route](#adding-a-route)
-  - [Adding Links](#adding-links)
-  - [Using A Layout](#using-a-layout)
-- [Data Fetching](#data-fetching)
+- [Data Fetching & Server Functions](#data-fetching--server-functions)
 - [State Management](#state-management)
+- [Styling & Theming](#styling--theming)
+- [Error Monitoring](#error-monitoring)
+- [Upgrading from the 2025 version](#upgrading-from-the-2025-version)
+- [Troubleshooting](#troubleshooting)
 - [Learn More](#learn-more)
 
 ## Deploy to Netlify
@@ -39,339 +31,255 @@ Want to deploy immediately? Click this button
 
 [![Deploy to Netlify Button](https://www.netlify.com/img/deploy/button.svg)](https://app.netlify.com/start/deploy?repository=https://github.com/netlify-templates/tanstack-template)
 
-Clicking this button will create a new repo for you that looks exactly like this one, and sets that repo up immediately for deployment on Netlify.
+Clicking this button will create a new repo for you that looks exactly like this one, and sets that repo up immediately for deployment on Netlify. You will be asked for an `ANTHROPIC_API_KEY`.
+
+## Screenshots
+
+| Dark | Light |
+| --- | --- |
+| ![Chat in dark mode](docs/screenshots/chat-welcome-dark.jpg) | ![Chat in light mode](docs/screenshots/chat-welcome-light.jpg) |
+| ![Examples in dark mode](docs/screenshots/examples-dark.jpg) | ![About page in light mode](docs/screenshots/about-light.jpg) |
+| ![Server functions example](docs/screenshots/server-functions-dark.jpg) | ![Search params example](docs/screenshots/search-params-dark.jpg) |
+
+<p align="center">
+  <img src="docs/screenshots/mobile-chat-dark.jpg" alt="Mobile chat" width="260" />
+  &nbsp;&nbsp;
+  <img src="docs/screenshots/mobile-sidebar-dark.jpg" alt="Mobile conversation drawer" width="260" />
+</p>
 
 ## Features
 
-### AI Capabilities
-- 🤖 Powered by Claude 3.5 Sonnet 
-- 📝 Rich markdown formatting with syntax highlighting
-- 🎯 Customizable system prompts for tailored AI behavior
-- 🔄 Real-time message updates and streaming responses
+### AI
+- 🤖 Streaming replies from Claude (`claude-opus-5-5` by default, configurable with `ANTHROPIC_MODEL`)
+- 🔐 The API key stays on the server and is never sent to the browser
+- 🎯 Custom system prompts you can switch on and off
+- 📝 Markdown rendering with syntax highlighting, sanitized with `rehype-sanitize`
 
-### User Experience
-- 🎨 Modern UI with Tailwind CSS and Lucide icons
-- 🔍 Conversation management
-- 🔐 API key management
-- 📋 Markdown rendering with code highlighting
+### User experience
+- 🌗 Light, dark and system themes, with no flash of the wrong theme on load
+- 📱 Responsive layout with a slide-out conversation drawer on phones
+- 💡 Suggested prompts on the welcome screen
+- ✏️ Rename and delete conversations; optional Convex persistence
+- ♿ Labelled controls, keyboard support (Enter to send, Shift+Enter for a new line, Esc to close dialogs) and reduced-motion support
 
-## Architecture
+### Template showcase
+- 🧪 Example pages for loaders, server functions, type-safe search params and server routes
+- 🩺 A `/api/health` JSON endpoint
 
-### Tech Stack
-- **Frontend Framework**: React 19 with TanStack Start
-- **Routing**: TanStack Router
-- **State Management**: TanStack Store
-- **Database**: Convex (optional)
-- **Styling**: Tailwind CSS 4
-- **AI Integration**: Anthropic's Claude API
-- **Build Tool**: Vite 6 with Vinxi
+## Tech Stack
 
-### Prerequisites
-
-- [Node.js](https://nodejs.org/) v20.9+
-- (optional) [nvm](https://github.com/nvm-sh/nvm) for Node version management
-- [Anthropic Claude API](https://www.anthropic.com/api)
-- (optional) [Convex Account](https://dashboard.convex.dev/signup) for database storage
-
-## Project Structure
-
-The project follows a modular structure for better organization and maintainability:
-
-```
-tanstack-template/
-├── convex/              # Convex database schema and functions (optional)
-├── public/              # Static assets
-├── src/
-│   ├── components/      # Reusable UI components
-│   ├── routes/          # TanStack Router route definitions
-│   ├── store/           # TanStack Store state management
-│   ├── utils/           # Utility functions and helpers
-│   ├── api.ts           # API client configuration
-│   ├── client.tsx       # Client-side entry point
-│   ├── convex.tsx       # Convex client configuration
-│   ├── router.tsx       # Router configuration
-│   ├── sentry.ts        # Sentry error monitoring setup
-│   ├── ssr.tsx          # Server-side rendering setup
-│   └── styles.css       # Global styles
-├── .env.example         # Example environment variables
-├── app.config.ts        # Application configuration
-├── package.json         # Project dependencies and scripts
-├── postcss.config.ts    # PostCSS configuration for Tailwind
-├── tsconfig.json        # TypeScript configuration
-└── vite.config.js       # Vite bundler configuration
-```
-
-### Key Directories
-
-- **src/components/**: Contains all reusable UI components used throughout the application
-- **src/routes/**: Contains route definitions using TanStack Router's file-based routing
-- **src/store/**: Contains state management logic using TanStack Store
-- **convex/**: Contains Convex database schema and functions (if using Convex for persistence)
+| Area | Tools |
+| --- | --- |
+| Framework | React 19, TanStack Start (Vite plugin), TanStack Router |
+| State | TanStack Store |
+| Database | Convex (optional) |
+| Styling | Tailwind CSS 4 + `@tailwindcss/typography`, Lucide icons |
+| AI | Anthropic TypeScript SDK |
+| Build & deploy | Vite 8, `@netlify/vite-plugin-tanstack-start` |
+| Quality | TypeScript (strict), ESLint (`@tanstack/eslint-config`) |
+| Monitoring | Sentry (optional) |
 
 ## Getting Started
 
-### Local Setup
+### Prerequisites
 
-Follow these steps to set up and run the project locally:
+- [Node.js](https://nodejs.org/) v20.19+ or v22.12+ (v22 LTS recommended)
+- An [Anthropic API key](https://console.anthropic.com/settings/keys)
+- (optional) a [Convex account](https://dashboard.convex.dev/signup) for persistent storage
 
-1. **Clone the repository**
-   ```bash
-   git clone https://github.com/netlify-templates/tanstack-template.git
-   cd tanstack-template
-   ```
-
-2. **Install dependencies**
-   ```bash
-   npm install
-   ```
-
-3. **Set up environment variables**
-   ```bash
-   cp .env.example .env
-   ```
-   
-   Then edit the `.env` file with your credentials:
-   - Required: Add your Anthropic API key (`VITE_ANTHROPIC_API_KEY`)
-   - Optional: Add Convex URL if using database features (`VITE_CONVEX_URL`)
-   - Optional: Add Sentry credentials for error monitoring (`VITE_SENTRY_DSN`, `SENTRY_AUTH_TOKEN`)
-
-4. **Start the development server**
-   ```bash
-   npm run dev
-   ```
-   
-   The application should now be running at [http://localhost:3000](http://localhost:3000)
-
-### Troubleshooting
-
-- **Node.js version**: Ensure you're using Node.js v20.9 or higher. You can check your version with `node -v`.
-  ```bash
-  # Using nvm to install and use the correct Node version
-  nvm install 20.9
-  nvm use 20.9
-  ```
-
-- **API Key Issues**: If you encounter errors related to the Anthropic API, verify that your API key is correctly set in the `.env` file and that you have sufficient credits in your Anthropic account.
-
-- **Port Conflicts**: If port 3000 is already in use, the development server will automatically try to use the next available port. Check your terminal output for the correct URL.
-
-- **Convex Setup (Optional)**: If you're using Convex for database functionality:
-  ```bash
-  npx convex dev
-  ```
-  This will start the Convex development server alongside your application.
-
-### Building For Production
-
-To build this application for production:
+### Local setup
 
 ```bash
-npm run build
+git clone https://github.com/netlify-templates/tanstack-template.git
+cd tanstack-template
+npm install
+cp .env.example .env   # then add your ANTHROPIC_API_KEY
+npm run dev
 ```
 
-To preview the production build:
+The app runs at [http://localhost:3000](http://localhost:3000).
 
-```bash
-npm run serve
-```
+## Scripts
 
-## Styling
-
-This project uses [Tailwind CSS](https://tailwindcss.com/) v4 for styling.
-
-## Error Monitoring
-
-This project uses [Sentry](https://sentry.io) for error monitoring and performance tracking. Sentry integration is optional and the project will run normally without Sentry configuration.
-
-To set up Sentry:
-
-1. Add your Sentry DSN and Auth Token to your `.env` file (created during the Getting Started steps)
-
-```
-# .env file
-VITE_SENTRY_DSN=your-sentry-dsn-here
-SENTRY_AUTH_TOKEN=your-sentry-auth-token-here
-```
-
-If the Sentry environment variables are not defined, the application will run without error monitoring.
+| Command | What it does |
+| --- | --- |
+| `npm run dev` | Start the dev server (with Netlify platform emulation) on port 3000 |
+| `npm run build` | Build the client and server for production (output in `dist/`, Netlify function in `.netlify/`) |
+| `npm start` / `npm run preview` | Serve the production build locally |
+| `npm run typecheck` | Type-check the project with `tsc` |
+| `npm run lint` | Lint with ESLint |
+| `npm run check` | Type-check, then lint |
 
 ## Environment Configuration
 
-### Anthropic API Key
+Create a `.env` file in the project root (see `.env.example`):
 
-You can generate and manage your Anthropic API keys through the [Anthropic Console](https://console.anthropic.com/login).
+```bash
+# Required for chat (server-only)
+ANTHROPIC_API_KEY=your_anthropic_api_key
+# Optional: use a different Claude model
+# ANTHROPIC_MODEL=claude-opus-5-5
 
+# Optional: persist conversations in Convex
+VITE_CONVEX_URL=your_convex_deployment_url
+
+# Optional: Sentry
+VITE_SENTRY_DSN=your_sentry_dsn
+SENTRY_AUTH_TOKEN=your_sentry_auth_token
+SENTRY_ORG=your_sentry_org
+SENTRY_PROJECT=your_sentry_project
 ```
-# .env file
-VITE_ANTHROPIC_API_KEY=your_anthropic_api_key
-```
 
-### Convex Configuration (Optional)
+### Anthropic API key
 
-For persistent storage of conversations:
+Chat needs `ANTHROPIC_API_KEY`. It is read only inside server functions. The old `VITE_ANTHROPIC_API_KEY` name still works as a fallback, but it is deprecated. Vite inlines any `VITE_*` variable that client code reads into the JavaScript bundle, so use `ANTHROPIC_API_KEY` for secrets.
+
+### Convex (optional)
+
+Without Convex, conversations live in memory and reset on reload. To persist them:
 
 1. Create a Convex account at [dashboard.convex.dev](https://dashboard.convex.dev/signup)
-2. Create a new project in the Convex dashboard
-3. Run `npx convex dev` in your project directory to set up Convex
-4. Add your Convex deployment URL to the `.env` file
+2. Run `npx convex dev` in the project directory to create and link a deployment
+3. Add the deployment URL to `.env` as `VITE_CONVEX_URL`
+
+The schema and functions live in [`convex/`](convex).
+
+## Project Structure
 
 ```
-# .env file
-VITE_CONVEX_URL=your_convex_deployment_url
+├── convex/                  # Convex schema + queries/mutations (optional)
+├── docs/screenshots/        # README screenshots
+├── public/                  # Static assets (logos, favicon, manifest, images)
+├── src/
+│   ├── client.tsx           # Client entry (hydration + Sentry init)
+│   ├── router.tsx           # getRouter() factory
+│   ├── routeTree.gen.ts     # Generated by TanStack Router (do not edit)
+│   ├── styles.css           # Tailwind 4 config, theme tokens, markdown styles
+│   ├── components/          # Chat UI, header, theme toggle, page shell
+│   ├── lib/                 # Theme store/script, shared data
+│   ├── routes/
+│   │   ├── __root.tsx       # HTML document, header, providers
+│   │   ├── index.tsx        # Chat
+│   │   ├── about.tsx        # About / features / tech stack
+│   │   ├── examples/        # Example pages
+│   │   └── api/health.ts    # JSON server route
+│   ├── store/               # TanStack Store state + Convex-aware hooks
+│   └── utils/ai.ts          # Claude server functions
+├── eslint.config.js
+├── netlify.toml
+└── vite.config.ts
 ```
+
+## Example Pages
+
+| Route | Shows |
+| --- | --- |
+| `/examples` | Index of the examples |
+| `/examples/server-functions` | `loader` + GET server function during SSR; POST server function via `useServerFn`, then `router.invalidate()` |
+| `/examples/search-params` | `validateSearch`, `stripSearchParams`, `useNavigate` and `<Link search>`: filter state kept in the URL |
+| `/api/health` | A server route (`server.handlers.GET`) returning JSON |
+| `/about` | Feature overview built from the template's own assets |
 
 ## Routing
-This project uses [TanStack Router](https://tanstack.com/router). The initial setup is a file based router. Which means that the routes are managed as files in `src/routes`.
 
-### Adding A Route
+This project uses [TanStack Router](https://tanstack.com/router) with file-based routing. Each file in `src/routes` becomes a route, and `src/routeTree.gen.ts` is regenerated automatically by the Vite plugin.
 
-To add a new route to your application just add another a new file in the `./src/routes` directory.
+### Adding a route
 
-TanStack will automatically generate the content of the route file for you.
-
-Now that you have two routes you can use a `Link` component to navigate between them.
-
-### Adding Links
-
-To use SPA (Single Page Application) navigation you will need to import the `Link` component from `@tanstack/react-router`.
+Create a file such as `src/routes/hello.tsx`:
 
 ```tsx
-import { Link } from "@tanstack/react-router";
-```
+import { createFileRoute } from '@tanstack/react-router'
 
-Then anywhere in your JSX you can use it like so:
-
-```tsx
-<Link to="/about">About</Link>
-```
-
-This will create a link that will navigate to the `/about` route.
-
-More information on the `Link` component can be found in the [Link documentation](https://tanstack.com/router/v1/docs/framework/react/api/router/linkComponent).
-
-### Using A Layout
-
-In the File Based Routing setup the layout is located in `src/routes/__root.tsx`. Anything you add to the root route will appear in all the routes. The route content will appear in the JSX where you use the `<Outlet />` component.
-
-Here is an example layout that includes a header:
-
-```tsx
-import { createRootRoute, Outlet } from '@tanstack/react-router'
-import { TanStackRouterDevtools } from '@tanstack/router-devtools'
-
-import { Link } from "@tanstack/react-router";
-
-export const Route = createRootRoute({
-  component: () => (
-    <>
-      <header>
-        <nav>
-          <Link to="/">Home</Link>
-          <Link to="/about">About</Link>
-        </nav>
-      </header>
-      <Outlet />
-      <TanStackRouterDevtools />
-    </>
-  ),
+export const Route = createFileRoute('/hello')({
+  component: () => <main className="p-8">Hello!</main>,
 })
 ```
 
-The `<TanStackRouterDevtools />` component is not required so you can remove it if you don't want it in your layout.
-
-More information on layouts can be found in the [Layouts documentation](https://tanstack.com/router/latest/docs/framework/react/guide/routing-concepts#layouts).
-
-## Data Fetching
-
-There are multiple ways to fetch data in your application. You can use the `loader` functionality built into TanStack Router to load the data for a route before it's rendered.
-
-For example:
+### Adding links
 
 ```tsx
-const peopleRoute = createRoute({
-  getParentRoute: () => rootRoute,
-  path: "/people",
-  loader: async () => {
-    const response = await fetch("https://swapi.dev/api/people");
-    return response.json() as Promise<{
-      results: {
-        name: string;
-      }[];
-    }>;
-  },
-  component: () => {
-    const data = peopleRoute.useLoaderData();
-    return (
-      <ul>
-        {data.results.map((person) => (
-          <li key={person.name}>{person.name}</li>
-        ))}
-      </ul>
-    );
-  },
-});
+import { Link } from '@tanstack/react-router'
+
+<Link to="/about">About</Link>
 ```
 
-Loaders simplify your data fetching logic dramatically. Check out more information in the [Loader documentation](https://tanstack.com/router/latest/docs/framework/react/guide/data-loading#loader-parameters).
+Links are fully typed: a typo in `to` is a type error. See the [Link documentation](https://tanstack.com/router/latest/docs/framework/react/api/router/linkComponent).
+
+### Layout
+
+`src/routes/__root.tsx` holds the HTML document and the site header. Child routes render where `<Outlet />` is placed.
+
+## Data Fetching & Server Functions
+
+Server-only code goes in `createServerFn`. Call it from a route `loader` to fetch data during SSR and client navigation:
+
+```tsx
+import { createFileRoute } from '@tanstack/react-router'
+import { createServerFn } from '@tanstack/react-start'
+
+const getTime = createServerFn({ method: 'GET' }).handler(() => new Date().toISOString())
+
+export const Route = createFileRoute('/time')({
+  loader: () => getTime(),
+  component: () => <p>{Route.useLoaderData()}</p>,
+})
+```
+
+For a raw HTTP endpoint, add a `server.handlers` object to a route (see `src/routes/api/health.ts`). The chat itself uses a POST server function (`genAIResponse` in `src/utils/ai.ts`) that returns a streaming `Response` of text chunks.
 
 ## State Management
 
-This project uses TanStack Store for local state management. The store files are located in the `src/store` directory. For persistent storage, the project can optionally use Convex as a backend database.
-
-Here's a simple example of how to use TanStack Store:
+App state (conversations, system prompts, loading state, theme) lives in [TanStack Store](https://tanstack.com/store):
 
 ```tsx
-import { useStore } from "@tanstack/react-store";
-import { Store } from "@tanstack/store";
+import { Store, useStore } from '@tanstack/react-store'
 
-const countStore = new Store(0);
+export const counter = new Store({ count: 0 })
 
 function Counter() {
-  const count = useStore(countStore);
+  const count = useStore(counter, (s) => s.count)
   return (
-    <div>
-      <button onClick={() => countStore.setState((n) => n + 1)}>
-        Increment - {count}
-      </button>
-    </div>
-  );
+    <button onClick={() => counter.setState((s) => ({ count: s.count + 1 }))}>
+      {count}
+    </button>
+  )
 }
 ```
 
-One of the many nice features of TanStack Store is the ability to derive state from other state. That derived state will update when the base state updates.
+`src/store/hooks.ts` chooses at build time between an in-memory implementation and a Convex-backed one, depending on whether `VITE_CONVEX_URL` is set.
 
-```tsx
-import { useStore } from "@tanstack/react-store";
-import { Store, Derived } from "@tanstack/store";
+## Styling & Theming
 
-const countStore = new Store(0);
+Tailwind CSS 4 is configured in `src/styles.css`; there is no `tailwind.config.js`. Colors are semantic tokens (`bg-surface`, `bg-surface-2`, `text-fg`, `text-muted`, `border-line`, `text-accent`, plus the `bg-brand` and `text-brand` gradients). Their dark values are set under `.dark`, so components need no `dark:` variants for basic colors.
 
-const doubledStore = new Derived({
-  fn: () => countStore.state * 2,
-  deps: [countStore],
-});
-doubledStore.mount();
+The theme toggle (`src/components/ThemeToggle.tsx`) stores the choice in `localStorage`. A small inline script in `<head>` applies it before first paint.
 
-function Counter() {
-  const count = useStore(countStore);
-  const doubledCount = useStore(doubledStore);
+## Error Monitoring
 
-  return (
-    <div>
-      <button onClick={() => countStore.setState((n) => n + 1)}>
-        Increment - {count}
-      </button>
-      <div>Doubled - {doubledCount}</div>
-    </div>
-  );
-}
-```
+[Sentry](https://sentry.io) is optional. Set `VITE_SENTRY_DSN` to enable browser error reporting and session replay. Set `SENTRY_AUTH_TOKEN`, `SENTRY_ORG` and `SENTRY_PROJECT` to upload source maps at build time.
 
-You can find out everything you need to know on how to use TanStack Store in the [TanStack Store documentation](https://tanstack.com/store/latest).
+## Upgrading from the 2025 version
+
+This template moved from the Vinxi-based TanStack Start beta to the current Vite plugin:
+
+- `app.config.ts`, `postcss.config.ts`, `src/ssr.tsx` and `src/api.ts` were removed. Configuration now lives in `vite.config.ts`.
+- `src/router.tsx` exports `getRouter()`, and server routes use `createFileRoute(...)({ server: { handlers } })`.
+- Rename `VITE_ANTHROPIC_API_KEY` to `ANTHROPIC_API_KEY` in `.env` and in your Netlify site settings.
+- `npm run serve` became `npm run preview`.
+
+## Troubleshooting
+
+- **API key errors**: check that `ANTHROPIC_API_KEY` is set (`/api/health` reports `chatConfigured`) and that your Anthropic account has credits.
+- **Port conflicts**: if port 3000 is taken, Vite picks the next free port. Check the terminal output for the URL.
+- **Node version**: Vite 8 needs Node 20.19+ or 22.12+. Check with `node -v`.
+- **Convex**: run `npx convex dev` alongside `npm run dev`.
 
 ## Learn More
 
-- Explore more about deploying with Netlify in the [Netlify documentation](https://docs.netlify.com/).
-- You can learn more about TanStack in the [TanStack documentation](https://tanstack.com).
-- Learn more about integrating AI with Anthropic's Claude API in the [Anthropic API documentation](https://console.anthropic.com/docs).
-- Learn about using Convex for database storage in the [Convex documentation](https://docs.convex.dev/).
+- [TanStack Start](https://tanstack.com/start)
+- [TanStack Router](https://tanstack.com/router)
+- [TanStack Store](https://tanstack.com/store)
+- [Claude API documentation](https://platform.claude.com/docs)
+- [Convex](https://docs.convex.dev)
+- [Netlify + TanStack Start](https://docs.netlify.com/build/frameworks/framework-setup-guides/tanstack-start/)

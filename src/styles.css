@@ -1,234 +1,125 @@
-@import "tailwindcss";
-@import "highlight.js/styles/github-dark.css";
+@import 'tailwindcss';
+@import 'highlight.js/styles/github-dark.css';
+@plugin '@tailwindcss/typography';
 
-body {
-  @apply m-0;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Oxygen",
-    "Ubuntu", "Cantarell", "Fira Sans", "Droid Sans", "Helvetica Neue",
-    sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-}
+/* Class-based dark mode: <html class="dark"> is set by the theme script */
+@custom-variant dark (&:where(.dark, .dark *));
 
-code {
-  font-family: source-code-pro, Menlo, Monaco, Consolas, "Courier New",
+/*
+ * Semantic color tokens. Components use `bg-surface`, `text-fg`, etc. so a
+ * single set of classes works in both themes. Dark values live under `.dark`.
+ */
+@theme {
+  --color-surface: #ffffff;
+  --color-surface-2: #f6f6f7;
+  --color-surface-3: #ececee;
+  --color-fg: #111827;
+  --color-muted: #5b6270;
+  --color-line: #e3e4e8;
+  --color-accent: #ea580c;
+  --color-accent-2: #dc2626;
+
+  --font-sans:
+    'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto,
+    'Helvetica Neue', sans-serif;
+  --font-mono:
+    'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
     monospace;
+
+  --animate-fade-up: fade-up 0.5s ease-out both;
+
+  @keyframes fade-up {
+    from {
+      opacity: 0;
+      transform: translateY(8px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
 }
 
-/* Custom scrollbar styles */
-::-webkit-scrollbar {
-  width: 8px;
+.dark {
+  --color-surface: #0d1017;
+  --color-surface-2: #151a23;
+  --color-surface-3: #1e2430;
+  --color-fg: #f3f4f6;
+  --color-muted: #9aa3b2;
+  --color-line: #262d3a;
+  --color-accent: #f97316;
+  --color-accent-2: #ef4444;
 }
 
-::-webkit-scrollbar-track {
-  background: transparent;
+@layer base {
+  html {
+    color-scheme: light;
+  }
+  html.dark {
+    color-scheme: dark;
+  }
+  body {
+    @apply m-0 bg-surface font-sans text-fg antialiased;
+  }
+  ::selection {
+    @apply bg-accent/25;
+  }
 }
 
-::-webkit-scrollbar-thumb {
-  background-color: rgba(156, 163, 175, 0.5);
-  border-radius: 4px;
+@utility bg-brand {
+  background-image: linear-gradient(
+    to right,
+    var(--color-accent),
+    var(--color-accent-2)
+  );
 }
 
-::-webkit-scrollbar-thumb:hover {
-  background-color: rgba(156, 163, 175, 0.7);
+@utility text-brand {
+  background-image: linear-gradient(
+    to right,
+    var(--color-accent),
+    var(--color-accent-2)
+  );
+  background-clip: text;
+  color: transparent;
 }
 
-/* Smooth transitions for dark mode */
-html {
-  transition: background-color 0.3s ease;
+/* Thin, theme-aware scrollbars */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in oklab, var(--color-muted) 45%, transparent)
+    transparent;
 }
 
-/* Markdown content styles */
+/* Chat markdown: typography plugin + accent tweaks */
 .prose {
-  max-width: none;
-  color: #e5e7eb; /* text-gray-200 */
+  --tw-prose-links: var(--color-accent);
+  --tw-prose-invert-links: var(--color-accent);
+  --tw-prose-quote-borders: var(--color-accent);
+  --tw-prose-invert-quote-borders: var(--color-accent);
 }
 
-/* .prose p {
-  margin-top: 1.25em;
-  margin-bottom: 1.25em;
-} */
-
-.prose code {
-  color: #e5e7eb;
-  background-color: rgba(31, 41, 55, 0.5);
-  padding: 0.2em 0.4em;
-  border-radius: 0.375rem;
-  font-size: 0.875em;
+.prose :where(code):not(:where(pre code)) {
+  @apply rounded-md bg-surface-3 px-1.5 py-0.5 font-normal;
+}
+.prose :where(code):not(:where(pre code))::before,
+.prose :where(code):not(:where(pre code))::after {
+  content: none;
 }
 
 .prose pre {
-  background-color: rgba(31, 41, 55, 0.5);
-  border-radius: 0.5rem;
-  padding: 1rem;
-  margin: 1.25em 0;
-  overflow-x: auto;
-}
-
-.prose pre code {
-  background-color: transparent;
-  padding: 0;
-  border-radius: 0;
-  color: inherit;
-}
-
-.prose h1, .prose h2, .prose h3, .prose h4 {
-  color: #f9fafb; /* text-gray-50 */
-  /* margin-top: 2em; */
-  /* margin-bottom: 1em; */
-}
-
-.prose ul, .prose ol {
-  margin-top: 1.25em;
-  margin-bottom: 1.25em;
-  padding-left: 1.625em;
-}
-
-.prose li {
-  margin-top: 0.5em;
-  margin-bottom: 0.5em;
+  @apply rounded-xl border border-line bg-[#0d1117];
 }
 
 .prose blockquote {
-  border-left-color: #f97316; /* orange-500 */
-  background-color: rgba(249, 115, 22, 0.1);
-  padding: 1em;
-  margin: 1.25em 0;
-  border-radius: 0.5rem;
-}
-
-.prose hr {
-  border-color: rgba(249, 115, 22, 0.2);
-  margin: 2em 0;
-}
-
-.prose a {
-  color: #f97316; /* orange-500 */
-  text-decoration: underline;
-  text-decoration-thickness: 0.1em;
-  text-underline-offset: 0.2em;
-}
-
-.prose a:hover {
-  color: #fb923c; /* orange-400 */
-}
-
-.prose table {
-  width: 100%;
-  border-collapse: collapse;
-  margin: 1.25em 0;
-}
-
-.prose th, .prose td {
-  padding: 0.75em;
-  border: 1px solid rgba(249, 115, 22, 0.2);
-}
-
-.prose th {
-  background-color: rgba(249, 115, 22, 0.1);
-  font-weight: 600;
-}
-
-/* Message transition animations */
-.message-enter {
-  opacity: 0;
-  transform: translateY(10px);
-}
-
-.message-enter-active {
-  opacity: 1;
-  transform: translateY(0);
-  transition: opacity 300ms, transform 300ms;
-}
-
-.message-exit {
-  opacity: 1;
-}
-
-.message-exit-active {
-  opacity: 0;
-  transition: opacity 300ms;
-}
-
-/* Add/update these styles to match AI formatting capabilities */
-.prose h1 {
-  font-size: 2em;
-  /* margin-top: 1em; */
-  margin-bottom: 0.5em;
-}
-
-.prose h2 {
-  font-size: 1.5em;
-  margin-top: 1em;
-  margin-bottom: 0.5em;
-}
-
-.prose h3 {
-  font-size: 1.25em;
-  margin-top: 1em;
-  margin-bottom: 0.5em;
-}
-
-.prose ul {
-  list-style-type: disc;
-  padding-left: 1.5em;
-}
-
-.prose ol {
-  list-style-type: decimal;
-  padding-left: 1.5em;
-}
-
-.prose table {
-  width: 100%;
-  border-collapse: collapse;
-  margin: 1em 0;
+  @apply rounded-r-lg bg-accent/10 py-1 not-italic;
 }
 
 .prose th,
 .prose td {
-  border: 1px solid rgba(249, 115, 22, 0.2);
-  padding: 0.5em;
+  @apply border border-accent/20 px-3 py-2;
 }
 
 .prose th {
-  background-color: rgba(249, 115, 22, 0.1);
-}
-
-.prose strong {
-  color: #f9fafb; /* text-gray-50 */
-  font-weight: 600;
-}
-
-.prose em {
-  font-style: italic;
-}
-
-.prose blockquote {
-  border-left: 4px solid #f97316; /* orange-500 */
-  padding-left: 1em;
-  margin: 1em 0;
-  color: #d1d5db; /* text-gray-300 */
-}
-
-/* Ensure code blocks match the AI's formatting */
-.prose code {
-  color: #e5e7eb;
-  background-color: rgba(31, 41, 55, 0.5);
-  padding: 0.2em 0.4em;
-  border-radius: 0.375rem;
-  font-size: 0.875em;
-}
-
-.prose pre {
-  background-color: rgba(31, 41, 55, 0.5);
-  border-radius: 0.5rem;
-  padding: 1rem;
-  margin: 1em 0;
-}
-
-.prose pre code {
-  background-color: transparent;
-  padding: 0;
-  border-radius: 0;
+  @apply bg-accent/10;
 }

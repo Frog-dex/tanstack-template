@@ -1,11 +1,16 @@
 import { createServerFn } from '@tanstack/react-start'
-import { Anthropic } from '@anthropic-ai/sdk'
+import Anthropic from '@anthropic-ai/sdk'
 
 export interface Message {
   id: string
   role: 'user' | 'assistant'
   content: string
 }
+
+export const DEFAULT_MODEL = 'claude-opus-5-5'
+
+/** Prefix used for locally generated error replies; these are never sent to the API. */
+export const ERROR_MESSAGE_PREFIX = 'Sorry, I encountered an error'
 
 const DEFAULT_SYSTEM_PROMPT = `You are TanStack Chat, an AI assistant using Markdown for clear and structured responses. Format your responses following these guidelines:
 
@@ -49,98 +54,92 @@ const DEFAULT_SYSTEM_PROMPT = `You are TanStack Chat, an AI assistant using Mark
 
 Keep responses concise and well-structured. Use appropriate Markdown formatting to enhance readability and understanding.`
 
-// Non-streaming implementation
-export const genAIResponse = createServerFn({ method: 'GET', response: 'raw' })
+/** Read the API key on the server only. VITE_ANTHROPIC_API_KEY is kept as a legacy fallback. */
+function getApiKey() {
+  return process.env.ANTHROPIC_API_KEY || process.env.VITE_ANTHROPIC_API_KEY
+}
+
+/** Lets the UI know whether chat is configured, without exposing the key to the browser. */
+export const getChatConfig = createServerFn({ method: 'GET' }).handler(() => ({
+  hasApiKey: Boolean(getApiKey()),
+  model: process.env.ANTHROPIC_MODEL || DEFAULT_MODEL,
+}))
+
+/**
+ * Streams Claude's reply as plain UTF-8 text chunks.
+ * The client reads the body with a TextDecoder and appends each chunk.
+ */
+export const genAIResponse = createServerFn({ method: 'POST' })
   .validator(
     (d: {
       messages: Array<Message>
       systemPrompt?: { value: string; enabled: boolean }
     }) => d,
   )
-  // .middleware([loggingMiddleware])
-  .handler(async ({ data }) => {
-    // Check for API key in environment variables
-    const apiKey = process.env.ANTHROPIC_API_KEY || import.meta.env.VITE_ANTHROPIC_API_KEY
-
+  .handler(({ data }) => {
+    const apiKey = getApiKey()
     if (!apiKey) {
-      throw new Error(
-        'Missing API key: Please set VITE_ANTHROPIC_API_KEY in your environment variables or VITE_ANTHROPIC_API_KEY in your .env file.'
+      return Response.json(
+        { error: 'Missing API key: set ANTHROPIC_API_KEY in your environment.' },
+        { status: 500 },
       )
     }
-    
-    // Create Anthropic client with proper configuration
-    const anthropic = new Anthropic({
-      apiKey,
-      // Add proper timeout to avoid connection issues
-      timeout: 30000 // 30 seconds timeout
-    })
 
-    // Filter out error messages and empty messages
-    const formattedMessages = data.messages
+    const messages: Array<Anthropic.MessageParam> = data.messages
       .filter(
         (msg) =>
           msg.content.trim() !== '' &&
-          !msg.content.startsWith('Sorry, I encountered an error'),
+          !msg.content.startsWith(ERROR_MESSAGE_PREFIX),
       )
-      .map((msg) => ({
-        role: msg.role,
-        content: msg.content.trim(),
-      }))
+      .map((msg) => ({ role: msg.role, content: msg.content.trim() }))
 
-    if (formattedMessages.length === 0) {
-      return new Response(JSON.stringify({ error: 'No valid messages to send' }), {
-        status: 400,
-        headers: { 'Content-Type': 'application/json' },
-      })
+    if (messages.length === 0) {
+      return Response.json({ error: 'No valid messages to send' }, { status: 400 })
     }
 
-    const systemPrompt = data.systemPrompt?.enabled
+    const system = data.systemPrompt?.enabled
       ? `${DEFAULT_SYSTEM_PROMPT}\n\n${data.systemPrompt.value}`
       : DEFAULT_SYSTEM_PROMPT
 
-    // Debug log to verify prompt layering
-    console.log('System Prompt Configuration:', {
-      hasCustomPrompt: data.systemPrompt?.enabled,
-      customPromptValue: data.systemPrompt?.value,
-      finalPrompt: systemPrompt,
+    const anthropic = new Anthropic({ apiKey })
+    const stream = anthropic.beta.messages.stream({
+      model: process.env.ANTHROPIC_MODEL || DEFAULT_MODEL,
+      max_tokens: 64000,
+      system,
+      messages,
+      output_config: { effort: 'low' },
+      // If the primary model declines, the API retries on a suitable fallback model
+      betas: ['server-side-fallback-2026-07-01'],
+      fallbacks: 'default',
     })
 
-    try {
-      const response = await anthropic.messages.stream({
-        model: 'claude-3-5-sonnet-20241022',
-        max_tokens: 4096,
-        system: systemPrompt,
-        messages: formattedMessages,
-      })
-
-      return new Response(response.toReadableStream())
-    } catch (error) {
-      console.error('Error in genAIResponse:', error)
-      
-      // Error handling with specific messages
-      let errorMessage = 'Failed to get AI response'
-      let statusCode = 500
-      
-      if (error instanceof Error) {
-        if (error.message.includes('rate limit')) {
-          errorMessage = 'Rate limit exceeded. Please try again in a moment.'
-        } else if (error.message.includes('Connection error') || error.name === 'APIConnectionError') {
-          errorMessage = 'Connection to Anthropic API failed. Please check your internet connection and API key.'
-          statusCode = 503 // Service Unavailable
-        } else if (error.message.includes('authentication')) {
-          errorMessage = 'Authentication failed. Please check your Anthropic API key.'
-          statusCode = 401 // Unauthorized
-        } else {
-          errorMessage = error.message
+    const encoder = new TextEncoder()
+    const body = new ReadableStream<Uint8Array>({
+      async start(controller) {
+        try {
+          for await (const event of stream) {
+            if (
+              event.type === 'content_block_delta' &&
+              event.delta.type === 'text_delta'
+            ) {
+              controller.enqueue(encoder.encode(event.delta.text))
+            }
+          }
+          controller.close()
+        } catch (error) {
+          console.error('Error streaming from Anthropic:', error)
+          controller.error(error)
         }
-      }
-      
-      return new Response(JSON.stringify({ 
-        error: errorMessage,
-        details: error instanceof Error ? error.name : undefined
-      }), {
-        status: statusCode,
-        headers: { 'Content-Type': 'application/json' },
-      })
-    }
-  }) 
+      },
+      cancel() {
+        stream.abort()
+      },
+    })
+
+    return new Response(body, {
+      headers: {
+        'Content-Type': 'text/plain; charset=utf-8',
+        'Cache-Control': 'no-store',
+      },
+    })
+  })

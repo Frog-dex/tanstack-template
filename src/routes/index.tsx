@@ -1,18 +1,44 @@
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { createFileRoute } from '@tanstack/react-router'
-import { useEffect, useState, useRef, useCallback, useMemo } from 'react'
-import { Settings } from 'lucide-react'
-import { 
-  SettingsDialog, 
-  ChatMessage, 
-  LoadingIndicator, 
-  ChatInput, 
-  Sidebar, 
-  WelcomeScreen 
+import { useServerFn } from '@tanstack/react-start'
+import { PanelLeft } from 'lucide-react'
+
+import {
+  ChatInput,
+  ChatMessage,
+  LoadingIndicator,
+  SettingsDialog,
+  Sidebar,
+  WelcomeScreen,
 } from '../components'
-import { useConversations, useAppState, store, actions } from '../store'
-import { genAIResponse, type Message } from '../utils'
+import { actions, store, useAppState, useConversations } from '../store'
+import {
+  ERROR_MESSAGE_PREFIX,
+  
+  genAIResponse,
+  getChatConfig
+} from '../utils'
+import type {Message} from '../utils';
+
+export const Route = createFileRoute('/')({
+  loader: () => getChatConfig(),
+  head: () => ({ meta: [{ title: 'Chat · TanStack Chat Starter' }] }),
+  component: Home,
+})
+
+function createTitleFromInput(text: string) {
+  const words = text.trim().split(/\s+/)
+  return words.slice(0, 3).join(' ') + (words.length > 3 ? '...' : '')
+}
+
+function newId() {
+  return crypto.randomUUID()
+}
 
 function Home() {
+  const { hasApiKey, model } = Route.useLoaderData()
+  const generate = useServerFn(genAIResponse)
+
   const {
     conversations,
     currentConversationId,
@@ -23,294 +49,191 @@ function Home() {
     deleteConversation,
     addMessage,
   } = useConversations()
-  
   const { isLoading, setLoading, getActivePrompt } = useAppState()
 
-  // Memoize messages to prevent unnecessary re-renders
-  const messages = useMemo(() => currentConversation?.messages || [], [currentConversation]);
+  const messages = currentConversation?.messages ?? []
 
-  // Check if Anthropic API key is defined
-  const isAnthropicKeyDefined = Boolean(import.meta.env.VITE_ANTHROPIC_API_KEY);
-
-  // Local state
   const [input, setInput] = useState('')
-  const [editingChatId, setEditingChatId] = useState<string | null>(null)
-  const [editingTitle, setEditingTitle] = useState('')
   const [isSettingsOpen, setIsSettingsOpen] = useState(false)
-  const messagesContainerRef = useRef<HTMLDivElement>(null)
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false)
   const [pendingMessage, setPendingMessage] = useState<Message | null>(null)
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null)
+  const messagesContainerRef = useRef<HTMLDivElement>(null)
 
-  const scrollToBottom = useCallback(() => {
-    if (messagesContainerRef.current) {
-      messagesContainerRef.current.scrollTop =
-        messagesContainerRef.current.scrollHeight
-    }
-  }, []);
-
-  // Scroll to bottom when messages change or loading state changes
+  // Keep the newest content in view while messages stream in
   useEffect(() => {
-    scrollToBottom()
-  }, [messages, isLoading, scrollToBottom])
+    const el = messagesContainerRef.current
+    if (el) el.scrollTop = el.scrollHeight
+  }, [messages.length, pendingMessage?.content, isLoading])
 
-  const createTitleFromInput = useCallback((text: string) => {
-    const words = text.trim().split(/\s+/)
-    const firstThreeWords = words.slice(0, 3).join(' ')
-    return firstThreeWords + (words.length > 3 ? '...' : '')
-  }, []);
-
-  // Helper function to process AI response
-  const processAIResponse = useCallback(async (conversationId: string, userMessage: Message) => {
-    try {
-      // Get active prompt
+  const streamAssistantReply = useCallback(
+    async (conversationId: string, history: Array<Message>) => {
       const activePrompt = getActivePrompt(store.state)
-      let systemPrompt
-      if (activePrompt) {
-        systemPrompt = {
-          value: activePrompt.content,
-          enabled: true,
+      const systemPrompt = activePrompt
+        ? { value: activePrompt.content, enabled: true }
+        : undefined
+
+      let reply: Message = { id: newId(), role: 'assistant', content: '' }
+
+      try {
+        const response = await generate({ data: { messages: history, systemPrompt } })
+        if (!response.ok || !response.body) {
+          const body = await response.json().catch(() => null)
+          throw new Error(body?.error ?? `Request failed (${response.status})`)
         }
-      }
 
-      // Get AI response
-      const response = await genAIResponse({
-        data: {
-          messages: [...messages, userMessage],
-          systemPrompt,
-        },
-      })
-
-      const reader = response.body?.getReader()
-      if (!reader) {
-        throw new Error('No reader found in response')
-      }
-
-      const decoder = new TextDecoder()
-
-      let done = false
-      let newMessage = {
-        id: (Date.now() + 1).toString(),
-        role: 'assistant' as const,
-        content: '',
-      }
-      while (!done) {
-        const out = await reader.read()
-        done = out.done
-        if (!done) {
-          try {
-            const json = JSON.parse(decoder.decode(out.value))
-            if (json.type === 'content_block_delta') {
-              newMessage = {
-                ...newMessage,
-                content: newMessage.content + json.delta.text,
-              }
-              setPendingMessage(newMessage)
-            }
-          } catch (e) {
-            console.error('Error parsing streaming response:', e)
-          }
+        const reader = response.body.getReader()
+        const decoder = new TextDecoder()
+        for (;;) {
+          const { done, value } = await reader.read()
+          if (done) break
+          // `stream: true` keeps multi-byte characters intact across chunk boundaries
+          reply = { ...reply, content: reply.content + decoder.decode(value, { stream: true }) }
+          setPendingMessage(reply)
         }
+        reply = { ...reply, content: reply.content + decoder.decode() }
+
+        if (reply.content.trim()) await addMessage(conversationId, reply)
+      } catch (err) {
+        console.error('Error in AI response:', err)
+        const detail = err instanceof Error ? ` (${err.message})` : ''
+        await addMessage(conversationId, {
+          id: newId(),
+          role: 'assistant',
+          content: `${ERROR_MESSAGE_PREFIX} generating a response${detail}. Check that ANTHROPIC_API_KEY is set on the server.`,
+        })
+      } finally {
+        setPendingMessage(null)
       }
+    },
+    [generate, getActivePrompt, addMessage],
+  )
 
-      setPendingMessage(null)
-      if (newMessage.content.trim()) {
-        // Add AI message to Convex
-        console.log('Adding AI response to conversation:', conversationId)
-        await addMessage(conversationId, newMessage)
-      }
-    } catch (error) {
-      console.error('Error in AI response:', error)
-      // Add an error message to the conversation
-      const errorMessage: Message = {
-        id: (Date.now() + 1).toString(),
-        role: 'assistant' as const,
-        content: 'Sorry, I encountered an error generating a response. Please set the required API keys in your environment variables.',
-      }
-      await addMessage(conversationId, errorMessage)
-    }
-  }, [messages, getActivePrompt, addMessage]);
+  const handleSubmit = useCallback(
+    async (_e?: React.FormEvent, overrideText?: string) => {
+      const text = (overrideText ?? input).trim()
+      if (!text || isLoading) return
 
-  const handleSubmit = useCallback(async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!input.trim() || isLoading) return
+      setInput('')
+      setLoading(true)
+      setError(null)
 
-    const currentInput = input
-    setInput('') // Clear input early for better UX
-    setLoading(true)
-    setError(null)
-    
-    const conversationTitle = createTitleFromInput(currentInput)
+      const userMessage: Message = { id: newId(), role: 'user', content: text }
 
-    try {
-      // Create the user message object
-      const userMessage: Message = {
-        id: Date.now().toString(),
-        role: 'user' as const,
-        content: currentInput.trim(),
-      }
-      
-      let conversationId = currentConversationId
-
-      // If no current conversation, create one in Convex first
-      if (!conversationId) {
-        try {
-          console.log('Creating new Convex conversation with title:', conversationTitle)
-          // Create a new conversation with our title
-          const convexId = await createNewConversation(conversationTitle)
-          
-          if (convexId) {
-            console.log('Successfully created Convex conversation with ID:', convexId)
-            conversationId = convexId
-            
-            // Add user message directly to Convex
-            console.log('Adding user message to Convex conversation:', userMessage.content)
-            await addMessage(conversationId, userMessage)
-          } else {
-            console.warn('Failed to create Convex conversation, falling back to local')
-            // Fallback to local storage if Convex creation failed
-            const tempId = Date.now().toString()
-            const tempConversation = {
-              id: tempId,
-              title: conversationTitle,
-              messages: [],
-            }
-            
-            actions.addConversation(tempConversation)
-            conversationId = tempId
-            
-            // Add user message to local state
-            actions.addMessage(conversationId, userMessage)
-          }
-        } catch (error) {
-          console.error('Error creating conversation:', error)
-          throw new Error('Failed to create conversation')
+      try {
+        let conversationId = currentConversationId
+        if (!conversationId) {
+          conversationId = await createNewConversation(createTitleFromInput(text))
         }
-      } else {
-        // We already have a conversation ID, add message directly to Convex
-        console.log('Adding user message to existing conversation:', conversationId)
+        // Read the history *before* adding the new message (the store updates synchronously)
+        const history = [
+          ...(store.state.conversations.find((c) => c.id === conversationId)?.messages ?? []),
+          userMessage,
+        ]
         await addMessage(conversationId, userMessage)
+        await streamAssistantReply(conversationId, history)
+      } catch (err) {
+        console.error('Error:', err)
+        setError(err instanceof Error ? err.message : 'An unknown error occurred.')
+      } finally {
+        setLoading(false)
       }
-      
-      // Process with AI after message is stored
-      await processAIResponse(conversationId, userMessage)
-      
-    } catch (error) {
-      console.error('Error:', error)
-      const errorMessage: Message = {
-        id: (Date.now() + 1).toString(),
-        role: 'assistant' as const,
-        content: 'Sorry, I encountered an error processing your request.',
-      }
-      if (currentConversationId) {
-        await addMessage(currentConversationId, errorMessage)
-      }
-      else {
-        if (error instanceof Error) {
-          setError(error.message)
-        } else {
-          setError('An unknown error occurred.')
-        }
-      }
-    } finally {
-      setLoading(false)
-    }
-  }, [input, isLoading, createTitleFromInput, currentConversationId, createNewConversation, addMessage, processAIResponse, setLoading]);
+    },
+    [input, isLoading, currentConversationId, createNewConversation, addMessage, streamAssistantReply, setLoading],
+  )
 
-  const handleNewChat = useCallback(() => {
-    createNewConversation()
-  }, [createNewConversation]);
-
-  const handleDeleteChat = useCallback(async (id: string) => {
-    await deleteConversation(id)
-  }, [deleteConversation]);
-
-  const handleUpdateChatTitle = useCallback(async (id: string, title: string) => {
-    await updateConversationTitle(id, title)
-    setEditingChatId(null)
-    setEditingTitle('')
-  }, [updateConversationTitle]);
+  const visibleMessages = pendingMessage ? [...messages, pendingMessage] : messages
 
   return (
-    <div className="relative flex h-screen bg-gray-900">
-      {/* Settings Button */}
-      <div className="absolute z-50 top-5 right-5">
-        <button
-          onClick={() => setIsSettingsOpen(true)}
-          className="flex items-center justify-center w-10 h-10 text-white transition-opacity rounded-full bg-gradient-to-r from-orange-500 to-red-600 hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-orange-500"
-        >
-          <Settings className="w-5 h-5" />
-        </button>
-      </div>
-
-      {/* Sidebar */}
-      <Sidebar 
+    <div className="relative flex h-[calc(100dvh-3.5rem)] overflow-hidden">
+      <Sidebar
         conversations={conversations}
         currentConversationId={currentConversationId}
-        handleNewChat={handleNewChat}
-        setCurrentConversationId={setCurrentConversationId}
-        handleDeleteChat={handleDeleteChat}
-        editingChatId={editingChatId}
-        setEditingChatId={setEditingChatId}
-        editingTitle={editingTitle}
-        setEditingTitle={setEditingTitle}
-        handleUpdateChatTitle={handleUpdateChatTitle}
+        onNewChat={() => {
+          // Start a fresh welcome screen; the conversation is created on first message
+          actions.setCurrentConversationId(null)
+          setIsSidebarOpen(false)
+        }}
+        onSelect={(id) => {
+          setCurrentConversationId(id)
+          setIsSidebarOpen(false)
+        }}
+        onDelete={deleteConversation}
+        onRename={updateConversationTitle}
+        onOpenSettings={() => setIsSettingsOpen(true)}
+        isOpen={isSidebarOpen}
+        onClose={() => setIsSidebarOpen(false)}
       />
 
-      {/* Main Content */}
-      <div className="flex flex-col flex-1">
-        {!isAnthropicKeyDefined && (
-          <div className="w-full max-w-3xl px-2 py-2 mx-auto mt-4 mb-2 font-medium text-center text-white bg-orange-500 rounded-md">
-            <p>This app requires an Anthropic API key to work properly.</p> 
-            <p>Update your <code>.env</code> file or get a <a href='https://console.anthropic.com/settings/keys' className='underline'>new Anthropic key</a>.</p>
+      <main className="flex min-w-0 flex-1 flex-col">
+        <div className="flex items-center gap-2 border-b border-line px-3 py-2 md:hidden">
+          <button
+            type="button"
+            onClick={() => setIsSidebarOpen(true)}
+            aria-label="Open conversations"
+            className="grid size-9 place-items-center rounded-lg text-muted hover:bg-surface-2 hover:text-fg"
+          >
+            <PanelLeft className="size-5" />
+          </button>
+          <span className="truncate text-sm font-medium">
+            {currentConversation?.title ?? 'New chat'}
+          </span>
+        </div>
+
+        {!hasApiKey && (
+          <div className="mx-auto mt-4 w-[calc(100%-2rem)] max-w-3xl rounded-xl border border-accent/30 bg-accent/10 px-4 py-3 text-center text-sm">
+            <p className="font-medium">This app requires an Anthropic API key to chat.</p>
+            <p className="text-muted">
+              Set <code className="font-mono">ANTHROPIC_API_KEY</code> in your{' '}
+              <code className="font-mono">.env</code> file or get a{' '}
+              <a href="https://console.anthropic.com/settings/keys" className="text-accent underline">
+                new Anthropic key
+              </a>
+              .
+            </p>
           </div>
         )}
         {error && (
-          <p className="w-full max-w-3xl p-4 mx-auto font-bold text-orange-500">{error}</p>
+          <p role="alert" className="mx-auto w-full max-w-3xl px-4 pt-4 font-semibold text-accent-2">
+            {error}
+          </p>
         )}
+
         {currentConversationId ? (
           <>
-            {/* Messages */}
-            <div
-              ref={messagesContainerRef}
-              className="flex-1 pb-24 overflow-y-auto"
-            >
-              <div className="w-full max-w-3xl px-4 mx-auto">
-                {[...messages, pendingMessage]
-                  .filter((message): message is Message => message !== null)
-                  .map((message) => (
-                    <ChatMessage key={message.id} message={message} />
-                  ))}
-                {isLoading && <LoadingIndicator />}
+            <div ref={messagesContainerRef} className="flex-1 overflow-y-auto">
+              <div className="mx-auto w-full max-w-3xl space-y-1 px-2 py-4 sm:px-4">
+                {visibleMessages.map((message) => (
+                  <ChatMessage key={message.id} message={message} />
+                ))}
+                {isLoading && !pendingMessage && <LoadingIndicator />}
               </div>
             </div>
-
-            {/* Input */}
-            <ChatInput 
-              input={input}
-              setInput={setInput}
-              handleSubmit={handleSubmit}
-              isLoading={isLoading}
-            />
+            <div className="border-t border-line bg-surface/80 backdrop-blur-sm">
+              <div className="mx-auto w-full max-w-3xl px-4 py-3">
+                <ChatInput
+                  input={input}
+                  setInput={setInput}
+                  handleSubmit={handleSubmit}
+                  isLoading={isLoading}
+                />
+                <p className="mt-1.5 text-center text-[11px] text-muted">
+                  Responses by <span className="font-mono">{model}</span> · Shift+Enter for a new line
+                </p>
+              </div>
+            </div>
           </>
         ) : (
-          <WelcomeScreen 
+          <WelcomeScreen
             input={input}
             setInput={setInput}
             handleSubmit={handleSubmit}
             isLoading={isLoading}
           />
         )}
-      </div>
+      </main>
 
-      {/* Settings Dialog */}
-      <SettingsDialog
-        isOpen={isSettingsOpen}
-        onClose={() => setIsSettingsOpen(false)}
-      />
+      <SettingsDialog isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} />
     </div>
   )
 }
-
-export const Route = createFileRoute('/')({
-  component: Home,
-})
